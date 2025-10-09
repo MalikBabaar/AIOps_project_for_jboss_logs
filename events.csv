@@ -2,6 +2,34 @@ timestamp,source,type,severity,message,status
 2025-10-07T09:55:19.835865+00:00,JBoss Logs,Anomaly,critical,2025-10-07 14:22:00 ERROR [org.jboss] Critical failure in connection pool,acknowledged
 2025-10-07T10:01:49.226769+00:00,JBoss Logs,Anomaly,critical,2025-10-07 15:20:00 ERROR [org.jboss] Database connection lost unexpectedly,acknowledged
 2025-10-07T10:03:34.921804+00:00,JBoss Logs,Anomaly,critical,[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,acknowledged
-2025-10-07T10:24:53.359434+00:00,JBoss Logs,Anomaly,critical,[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,active
-2025-10-07T10:24:57.743967+00:00,JBoss Logs,Anomaly,critical,[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,active
-2025-10-07T10:25:02.767089+00:00,JBoss Logs,Anomaly,critical,[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,active
+2025-10-07T10:24:53.359434+00:00,JBoss Logs,Anomaly,critical,[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,acknowledged
+2025-10-07T10:24:57.743967+00:00,JBoss Logs,Anomaly,critical,[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,acknowledged
+2025-10-07T10:25:02.767089+00:00,JBoss Logs,Anomaly,critical,[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,acknowledged
+2025-10-09T07:21:55.426799+00:00,JBoss Logs,Anomaly,critical,[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,acknowledged
+2025-10-09T07:31:47.408890+00:00,/var/log/jboss/server.log,Anomaly,critical,[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,acknowledged
+2025-10-09T07:37:42.374171+00:00,unknown,Anomaly,critical,[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,acknowledged
+2025-10-09T07:43:44.291008+00:00,unknown,Anomaly,critical,[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,acknowledged
+2025-10-09T07:51:17.589939+00:00,unknown,Anomaly,critical,[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,acknowledged
+2025-10-09T07:59:25.558859+00:00,unknown,Anomaly,critical,[2025-09-22 14:35:17] ERROR ...,acknowledged
+2025-10-09T10:04:03.026566+00:00,/var/log/jboss/server.log,Anomaly,critical,[2025-09-22 14:35:17] ERROR ...,active
+2025-10-09T10:26:06.289298+00:00,/var/log/jboss/server.log,Anomaly,critical,[2025-09-22 14:35:17] ERROR ...,active
+2025-10-09T10:26:08.284041+00:00,/var/log/jboss/server.log,Anomaly,critical,[2025-09-22 14:35:17] ERROR ...,active
+2025-10-09T10:26:12.800933+00:00,/var/log/jboss/server.log,Anomaly,critical,[2025-09-22 14:35:17] ERROR ...,active
+2025-10-09T10:26:54.559812+00:00,/var/log/jboss/server.log,Anomaly,critical,[2025-09-22 14:35:17] ERROR ...,active
+2025-10-09T10:27:36.626971+00:00,/var/log/jboss/server.log,Anomaly,critical,[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,active
+2025-10-09T10:29:41.009942+00:00,/var/log/jboss/server.log,Anomaly,critical,[[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,active
+2025-10-09T10:32:14.340995+00:00,/var/log/jboss/server.log,Anomaly,critical,[[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,active
+2025-10-09T10:38:14.230804+00:00,/var/log/jboss/server.log,Anomaly,critical,[[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,active
+2025-10-09T10:38:24.039396+00:00,/var/log/jboss/server.log,Anomaly,critical,[[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,active
+2025-10-09T10:38:28.607497+00:00,/var/log/jboss/server.log,Anomaly,critical,[[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,active
+2025-10-09T10:43:01.816660+00:00,/var/log/jboss/server.log,Anomaly,critical,[[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,active
+2025-10-09T10:48:29.337289+00:00,/var/log/jboss/server.log,Anomaly,critical,[[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,active
+2025-10-09T10:51:46.162149+00:00,/var/log/jboss/server.log,Anomaly,critical,[[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,active
+2025-10-09T10:53:21.364314+00:00,/var/log/jboss/server.log,Anomaly,critical,[[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,active
+2025-10-09T10:54:10.615682+00:00,/var/log/jboss/server.log,Anomaly,critical,[[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,active
+2025-10-09T11:23:18.361867+00:00,/var/log/jboss/server.log,Anomaly,critical,[[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,active
+2025-10-09T12:20:10.867154+00:00,/var/log/jboss/server.log,Anomaly,critical,[[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,active
+2025-10-09T12:20:17.881682+00:00,/var/log/jboss/server.log,Anomaly,critical,[[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,active
+2025-10-09T12:20:19.583851+00:00,/var/log/jboss/server.log,Anomaly,critical,[[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,active
+2025-10-09T12:20:20.533712+00:00,/var/log/jboss/server.log,Anomaly,critical,[[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,active
+2025-10-09T12:20:21.194948+00:00,/var/log/jboss/server.log,Anomaly,critical,[[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,active

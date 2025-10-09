@@ -1,0 +1,1 @@
+/var/log/jboss/server.log

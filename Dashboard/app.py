@@ -1,37 +1,73 @@
+# Dashboard/app.py
 import streamlit as st
 import requests
 import pandas as pd
+import plotly.express as px
+import time
+from streamlit_autorefresh import st_autorefresh
+from datetime import datetime
 
-# FastAPI backend URL
-API_URL = "http://backend:5000"
-
-
+API_URL = "http://localhost:5000"
 st.set_page_config(page_title="AIOps Dashboard", layout="wide")
 
-# ---------------- Helper functions ---------------- #
-def get_data(endpoint):
+# ---------------- LOGIN ---------------- #
+# Initialize session state
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
+if "username" not in st.session_state:
+    st.session_state.username = None
+
+# Login UI
+if not st.session_state.authenticated:
+    st.title("🔐 AIOps Dashboard Login")
+
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
+
+    if st.button("Login"):
+        try:
+            response = requests.post(f"{API_URL}/login", json={"username": username, "password": password})
+            if response.status_code == 200:
+                st.session_state.authenticated = True
+                st.session_state.username = response.json().get("username")
+                st.success("✅ Login successful!")
+                st.rerun()
+            else:
+                st.error("❌ Invalid username or password")
+        except Exception as e:
+            st.error(f"⚠️ Unable to reach backend: {e}")
+
+    st.stop()
+
+# Sidebar logout
+st.sidebar.write(f"👤 Logged in as **{st.session_state.username}**")
+if st.sidebar.button("Logout"):
+    st.session_state.authenticated = False
+    st.session_state.username = None
+    st.rerun()
+
+# ---------------- HELPERS ---------------- #
+def get_data(endpoint, params=None):
     try:
-        r = requests.get(f"{API_URL}{endpoint}")
-        return r.json() if r.status_code == 200 else {}
+        r = requests.get(f"{API_URL}{endpoint}", params=params, timeout=5)
+        return r.json() if r.status_code == 200 else {"error": r.text}
     except Exception as e:
         return {"error": str(e)}
 
-# ---------------- TOP NAVIGATION ---------------- #
-tabs = st.tabs([
-    "Overview", 
-    "System Monitoring", 
-    "ML Model Monitoring", 
-    "Anomalies", 
-    "Events & Alerts", 
-    "Users & Teams"
-])
+def post_data(endpoint, json_payload):
+    try:
+        r = requests.post(f"{API_URL}{endpoint}", json=json_payload, timeout=10)
+        return r
+    except Exception as e:
+        return None
 
-# --- OVERVIEW TAB --- #
+# ---------------- NAVIGATION ---------------- #
+tabs = st.tabs(["Overview", "System Monitoring", "ML Model Monitoring", "Anomalies", "Events & Alerts", "Users & Teams"])
+
+# --- Overview ---
 with tabs[0]:
     st.title("AIOps Dashboard")
-
     overview = get_data("/overview")
-
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("Total Logs Processed", f"{overview.get('total_logs', 0):,}")
     col2.metric("Anomalies Detected", f"{overview.get('anomalies', 0):,}")
@@ -39,49 +75,50 @@ with tabs[0]:
     col4.metric("Active Users", f"{overview.get('active_users', 0):,}")
 
     st.markdown("---")
+    st.subheader("Log File Location")
+    if "log_path" not in st.session_state:
+        # fetch persisted path if exists
+        st.session_state.log_path = ""
+        try:
+            import os
+            if os.path.exists("log_path.txt"):
+                st.session_state.log_path = open("log_path.txt").read().strip()
+        except Exception:
+            pass
 
-    st.subheader("Quick Analyzer")
-    log_entry = st.text_area(
-        "Log Entry",
-        "[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean"
-    )
-
-    col_cpu, col_mem = st.columns(2)
-    cpu_usage = col_cpu.text_input("CPU Usage (%)")
-    mem_usage = col_mem.text_input("Memory Usage (%)")
-
-    if st.button("Analyze"):
-        if log_entry.strip():
-            try:
-                response = requests.post(f"{API_URL}/analyze", json={"log": log_entry})
-                if response.status_code == 200:
-                    result = response.json()
-                    st.success("Analysis Result:")
-                    if result.get("is_anomaly"):
-                        st.error("⚠️ Anomaly Detected")
-                    else:
-                        st.success("✅ Log is Normal")
-                    st.json(result)
-                else:
-                    st.error(f"Error: {response.status_code} - {response.text}")
-            except Exception as e:
-                st.error(f"Failed to connect API: {e}")
+    new_path = st.text_input("Log file path", st.session_state.log_path or "/var/log/jboss/server.log")
+    if st.button("Save Log Path"):
+        resp = post_data("/set-log-path", {"path": new_path})
+        if resp is not None and resp.status_code == 200:
+            st.session_state.log_path = new_path
+            st.success("Saved log path")
         else:
-            st.warning("Please enter a log entry before analyzing.")
+            st.error("Failed to save log path")
 
-    st.markdown("### Event Logs")
-    st.info("Event logs will appear here...")
+    st.markdown("---")
+    st.subheader("Quick Analyzer")
+    log_entry = st.text_area("Paste log to analyze", value="[[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean")
+    if st.button("Analyze Log"):
+        if log_entry.strip():
+            r = post_data("/analyze", {"log": log_entry, "file_path": st.session_state.log_path})
+            if r is not None and r.status_code == 200:
+                res = r.json()
+                if res.get("is_anomaly"):
+                    st.error("⚠️ Anomaly detected")
+                else:
+                    st.success("✅ No anomaly")
+                st.json(res)
+            else:
+                st.error("Analyze failed")
+        else:
+            st.warning("Enter a log first")
 
-# --- SYSTEM MONITORING TAB --- #
+# --- System Monitoring ---
 with tabs[1]:
     st.title("System Monitoring")
+    st_autorefresh(interval=60000, key="sys-refresh")
 
-    import plotly.express as px
-    import time
-    from streamlit_autorefresh import st_autorefresh
-
-    st_autorefresh(interval=60000, key="system_monitor_refresh")
-
+    # Initialize session state for storing history
     if "stats_history" not in st.session_state:
         st.session_state.stats_history = {
             "time": [],
@@ -92,200 +129,221 @@ with tabs[1]:
             "net_recv": []
         }
 
-    system_stats = get_data("/system-stats")
+    sys_stats = get_data("/system-stats")
 
-    if "error" not in system_stats:
+    if "error" not in sys_stats:
+        # Append new stats
         st.session_state.stats_history["time"].append(time.strftime("%H:%M:%S"))
-        st.session_state.stats_history["cpu"].append(system_stats["cpu"])
-        st.session_state.stats_history["memory"].append(system_stats["memory"])
-        st.session_state.stats_history["disk"].append(system_stats["disk"])
-        st.session_state.stats_history["net_sent"].append(system_stats["network_sent"])
-        st.session_state.stats_history["net_recv"].append(system_stats["network_recv"])
+        st.session_state.stats_history["cpu"].append(sys_stats["cpu"])
+        st.session_state.stats_history["memory"].append(sys_stats["memory"])
+        st.session_state.stats_history["disk"].append(sys_stats["disk"])
+        st.session_state.stats_history["net_sent"].append(sys_stats["network_sent"])
+        st.session_state.stats_history["net_recv"].append(sys_stats["network_recv"])
 
-        max_points = 30
-        for key in st.session_state.stats_history:
-            st.session_state.stats_history[key] = st.session_state.stats_history[key][-max_points:]
+        # Keep only the last 30 records
+        for k in st.session_state.stats_history:
+            st.session_state.stats_history[k] = st.session_state.stats_history[k][-30:]
 
+        # Display metrics
         col1, col2, col3, col4, col5 = st.columns(5)
-        col1.metric("CPU Usage (%)", f"{system_stats['cpu']:.2f}")
-        col2.metric("Memory Usage (%)", f"{system_stats['memory']:.2f}")
-        col3.metric("Disk Usage (%)", f"{system_stats['disk']:.2f}")
-        col4.metric("Network Sent (bytes)", f"{system_stats['network_sent']:,}")
-        col5.metric("Network Received (bytes)", f"{system_stats['network_recv']:,}")
+        col1.metric("CPU (%)", f"{sys_stats['cpu']:.1f}")
+        col2.metric("Memory (%)", f"{sys_stats['memory']:.1f}")
+        col3.metric("Disk (%)", f"{sys_stats['disk']:.1f}")
+        col4.metric("Net Sent", f"{sys_stats['network_sent']:,}")
+        col5.metric("Net Recv", f"{sys_stats['network_recv']:,}")
 
-    if len(st.session_state.stats_history["time"]) > 0:
+        # Convert to DataFrame
         df_stats = pd.DataFrame(st.session_state.stats_history)
 
-        df_usage = df_stats.melt(
-            id_vars=["time"], 
-            value_vars=["cpu", "memory", "disk"],
-            var_name="Metric", 
-            value_name="Value"
-        )
+        # Create Plotly figures
         fig_usage = px.line(
-            df_usage, x="time", y="Value", color="Metric",
-            title="CPU, Memory, Disk Usage (%)",
-            markers=True
+            df_stats, x="time", y=["cpu", "memory", "disk"], title="Usage (%)"
         )
-        st.plotly_chart(fig_usage, config={"responsive": True}, key="usage_chart")
+        fig_network = px.line(
+            df_stats, x="time", y=["net_sent", "net_recv"], title="Network I/O"
+        )
 
-        df_net = df_stats.melt(
-            id_vars=["time"], 
-            value_vars=["net_sent", "net_recv"],
-            var_name="Metric", 
-            value_name="Value"
-        )
-        fig_net = px.line(
-            df_net, x="time", y="Value", color="Metric",
-            title="Network I/O (bytes)",
-            markers=True
-        )
-        st.plotly_chart(fig_net, config={"responsive": True}, key="network_chart")
+        # Display charts (fixed deprecation warning)
+        st.plotly_chart(fig_usage, config={"responsive": True}, use_container_width=True)
+        st.plotly_chart(fig_network, config={"responsive": True}, use_container_width=True)
 
-# --- ML MODEL MONITORING TAB --- #
+    else:
+        st.error(sys_stats.get("error"))
+
+# --- ML Model Monitoring ---
 with tabs[2]:
     st.title("ML Model Monitoring")
-
     if st.button("Get Model Info"):
-        response = requests.get(f"{API_URL}/model-info")
-        if response.status_code == 200:
-            st.json(response.json())
+        r = get_data("/model-info")
+        if "error" not in r:
+            st.json(r)
         else:
-            st.error(f"Error fetching model info: {response.status_code} - {response.text}")
+            st.error(r.get("error"))
 
-    st.markdown("### Retrain Model with Logs")
-
-    uploaded_file = st.file_uploader("Upload logs file (CSV)", type=["csv"])
-    if uploaded_file is not None:
-        df = pd.read_csv(uploaded_file)
-
-        if "log" not in df.columns:
-            possible_cols = [c for c in df.columns if "log" in c.lower() or "message" in c.lower()]
-            if possible_cols:
-                df.rename(columns={possible_cols[0]: "log"}, inplace=True)
-            else:
-                st.error("CSV must contain a 'log' column (or similar like 'message').")
-                st.stop()
-
-        if "label" in df.columns:
-            logs = [{"log": row["log"], "label": int(row["label"])} for _, row in df.iterrows()]
-        else:
-            logs = [{"log": l} for l in df["log"].tolist()]
-
-        st.write("Preview of uploaded logs:")
-        st.dataframe(df.head(), width="stretch")
-
-        if st.button("Retrain"):
+    st.markdown("### Retrain")
+    uploaded_files = st.file_uploader("Upload CSV logs (multiple allowed)", type=["csv"], accept_multiple_files=True)
+    if uploaded_files:
+        all_logs = []
+        for f in uploaded_files:
             try:
-                response = requests.post(f"{API_URL}/retrain", json=logs)
-                if response.status_code == 200:
-                    st.success("Retrain Result:")
-                    st.json(response.json())
-                else:
-                    st.error(f"Error: {response.status_code} - {response.text}")
+                df = pd.read_csv(f)
             except Exception as e:
-                st.error(f"Retrain failed: {e}")
+                st.error(f"Failed to read {f.name}: {e}")
+                continue
+            if "log" not in df.columns:
+                poss = [c for c in df.columns if "log" in c.lower() or "message" in c.lower()]
+                if poss:
+                    df.rename(columns={poss[0]: "log"}, inplace=True)
+                else:
+                    st.error(f"{f.name} has no log column")
+                    continue
+            all_logs.extend(df[["log"]].to_dict("records"))
+        if all_logs:
+            st.dataframe(pd.DataFrame(all_logs).head(), width="stretch")
+            if st.button("Retrain with uploaded files"):
+                r = requests.post(f"{API_URL}/retrain", json=all_logs)
+                if r.status_code == 200:
+                    st.success("Retrain started")
+                    st.json(r.json())
+                else:
+                    st.error(r.text)
 
-# --- ANOMALIES TAB --- #
+# --- Anomalies ---
 with tabs[3]:
-    st.title("Detected Anomalies")
-    history = get_data("/anomaly-history")
-    if history and isinstance(history, list) and len(history) > 0:
-        df = pd.DataFrame(history)
-        st.dataframe(df, width="stretch")
-    else:
-        st.info("No anomalies detected yet.")
+    st.title("Anomalies")
 
-# --- EVENTS & ALERTS TAB --- #
+    # --- Filters (Feature 6) ---
+    col_start, col_end = st.columns(2)
+    start_date = col_start.date_input("Start date", value=None)
+    end_date = col_end.date_input("End date", value=None)
+    params = {}
+    if start_date:
+        params["start"] = pd.to_datetime(start_date).isoformat()
+    if end_date:
+        params["end"] = (pd.to_datetime(end_date) + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)).isoformat()
+
+    # --- Fetch data when user clicks button ---
+    if st.button("Load Anomalies"):
+        history = get_data("/anomaly-history", params=params)
+        live = get_data("/live-logs")
+
+        if "error" in history:
+            st.error(history["error"])
+            history = []
+        if "error" in live:
+            st.error(live["error"])
+            live = []
+
+        # Merge both datasets (remove duplicates)
+        all_anomalies = []
+        if isinstance(history, list):
+            all_anomalies.extend(history)
+        if isinstance(live, list):
+            all_anomalies.extend(live)
+
+        if all_anomalies:
+            df = (
+                pd.DataFrame(all_anomalies)
+                .drop_duplicates(subset=["timestamp"])
+                .sort_values(by="timestamp", ascending=False)
+            )
+
+            # Add tag column if missing
+            if "tag" not in df.columns:
+                df["tag"] = ""
+
+            # --- Auto Tagging (Feature 5) ---
+            def suggest_tag(log):
+                text = str(log).lower()
+                if "error" in text or "fatal" in text or "critical" in text:
+                    return "critical"
+                elif "warn" in text:
+                    return "warning"
+                else:
+                    return "info"
+
+            if "suggested_tag" not in df.columns:
+                df["suggested_tag"] = df["log"].apply(suggest_tag)
+
+            # --- Display unified anomaly table ---
+            st.dataframe(df, width='stretch')
+
+            # --- Tagging Section ---
+            st.markdown("### Tag Management")
+            timestamps = df["timestamp"].astype(str).tolist()
+            sel = st.selectbox("Select anomaly to tag", timestamps)
+            new_tag = st.text_input("Tag to assign", value="")
+
+            if st.button("Save Tag"):
+                if sel and new_tag:
+                    r = requests.post(f"{API_URL}/anomaly/{sel}/tag", json={"tag": new_tag})
+                    if r and r.status_code == 200:
+                        st.success("✅ Tag saved successfully!")
+                        st.rerun()
+                    else:
+                        st.error("❌ Failed to save tag")
+        else:
+            st.info("No anomalies found (neither live nor historical).")
+    else:
+        st.info("Click 'Load Anomalies' to fetch data.")
+
+# --- Events & Alerts ---
 with tabs[4]:
     st.title("Events & Alerts")
-
     events = get_data("/events")
-
-    if isinstance(events, list) and len(events) > 0:
+    if "error" in events:
+        st.error(events["error"])
+    elif isinstance(events, list) and events:
         df = pd.DataFrame(events)
-
-        severity_icons = {
-            "critical": "🔴 Critical",
-            "warning": "🟠 Warning",
-            "info": "🟢 Info"
-        }
-
-        df["severity"] = df["severity"].apply(lambda x: severity_icons.get(str(x).lower(), x))
-        st.subheader("Alert History")
+        # grouping control
+        group_by = st.selectbox("Group by", ["none", "severity", "type"])
+        if group_by != "none" and group_by in df.columns:
+            grouped = df.groupby(group_by).size().reset_index(name="count")
+            st.bar_chart(grouped.set_index(group_by))
         st.dataframe(df, width="stretch")
-
-        st.markdown("---")
-        st.subheader("Acknowledge Alert")
-
-        active_alerts = df[df["status"] == "active"]["timestamp"].tolist()
-        if active_alerts:
-            selected_event = st.selectbox("Select Active Alert", active_alerts)
-            if st.button("Acknowledge Selected Alert"):
-                response = requests.post(f"{API_URL}/events/ack/{selected_event}")
-                if response.status_code == 200:
-                    st.success(response.json().get("message", "Alert acknowledged"))
-                    st.rerun()  # ✅ reload Streamlit after acknowledge
+        # acknowledge
+        active = df[df["status"] == "active"]["timestamp"].tolist()
+        if active:
+            sel = st.selectbox("Acknowledge alert (select)", active)
+            if st.button("Acknowledge"):
+                r = requests.post(f"{API_URL}/events/ack/{sel}")
+                if r.status_code == 200:
+                    st.success("Acknowledged")
+                    st.rerun()
                 else:
-                    st.error(f"Error: {response.status_code} - {response.text}")
-        else:
-            st.info("No active alerts to acknowledge.")
+                    st.error("Ack failed")
     else:
-        st.info("No events or alerts available.")
+        st.info("No events available")
 
-# --- USERS & TEAMS TAB --- #
+# --- Users & Teams ---
 with tabs[5]:
-    st.title("Users & Teams Management")
-    st.write("Manage user roles, team assignments, and permissions.")
-
-    backend_url = API_URL  # Update if backend runs elsewhere
-
-    # --- Add New User Section ---
-    st.subheader("➕ Add New User")
-    with st.form("add_user_form"):
-        name = st.text_input("Full Name")
-        email = st.text_input("Email Address")
+    st.title("Users & Teams")
+    st.subheader("Add user")
+    with st.form("add_user"):
+        name = st.text_input("Full name")
+        email = st.text_input("Email")
         role = st.selectbox("Role", ["admin", "analyst", "viewer"])
-        team = st.text_input("Team Name")
-        submit_user = st.form_submit_button("Add User")
-
-    if submit_user:
-        if not (name and email and team):
-            st.warning("Please fill in all required fields.")
+        team = st.text_input("Team")
+        submitted = st.form_submit_button("Add")
+    if submitted and name and email and team:
+        r = requests.post(f"{API_URL}/users", json={"name": name, "email": email, "role": role, "team": team})
+        if r.status_code == 200:
+            st.success("User added")
         else:
-            payload = {"name": name, "email": email, "role": role, "team": team}
-            res = requests.post(f"{backend_url}/users", json=payload)
-            if res.status_code == 200:
-                st.success(f"✅ User '{name}' added successfully.")
-            else:
-                st.error(f"❌ Failed to add user: {res.text}")
+            st.error(r.text)
 
-    st.divider()
-
-    # --- View All Users ---
-    st.subheader("👥 Current Users")
-    res = requests.get(f"{backend_url}/users")
-    if res.status_code == 200:
-        users = res.json()
+    st.markdown("### Current users")
+    r = get_data("/users")
+    if "error" in r:
+        st.error(r["error"])
+    else:
+        users = r
         if users:
             df_users = pd.DataFrame(users)
-            teams = sorted(df_users["team"].unique())
-            selected_team = st.selectbox("Filter by Team", ["All"] + teams)
-            if selected_team != "All":
-                df_users = df_users[df_users["team"] == selected_team]
-
-            st.dataframe(df_users, use_container_width=True)
-
-            # --- Delete User ---
-            st.subheader("🗑️ Delete a User")
-            delete_email = st.selectbox("Select User to Delete", df_users["email"].tolist())
-            if st.button("Delete User"):
-                del_res = requests.delete(f"{backend_url}/users/{delete_email}")
-                if del_res.status_code == 200:
-                    st.success(f"User {delete_email} deleted successfully.")
-                else:
-                    st.error(f"Error deleting user: {del_res.text}")
+            teams = ["All"] + sorted(df_users["team"].dropna().unique().tolist())
+            sel_team = st.selectbox("Filter by team", teams)
+            if sel_team != "All":
+                df_users = df_users[df_users["team"] == sel_team]
+            st.dataframe(df_users, width="stretch")
         else:
-            st.info("No users found yet.")
-    else:
-        st.error("⚠️ Failed to load users from backend.")
+            st.info("No users yet")

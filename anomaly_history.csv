@@ -1,97 +1,10 @@
-timestamp,log,anomaly_score,is_anomaly
-2025-10-06T06:46:29.031285+00:00,[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,0.0,False
-2025-10-06T06:48:31.452491+00:00,[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,0.0,False
-2025-10-06T06:48:39.989108+00:00,[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,0.0,False
-2025-10-06T06:48:43.540698+00:00,[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,0.0,False
-2025-10-06T06:48:45.703074+00:00,[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,0.0,False
-2025-10-06T06:48:46.324389+00:00,[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,0.0,False
-2025-10-06T06:50:59.487284+00:00,"2025-09-28 08:12:05,987 AUTH  [org.jboss.security] (default task-7) Authentication failure for user admin from 192.168.1.25",0.0,False
-2025-10-06T07:24:04.593430+00:00,[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,0.0,False
-2025-10-06T07:24:34.499257+00:00,[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,0.0,False
-2025-10-06T07:24:38.583310+00:00,[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,0.0,False
-2025-10-06T07:25:23.892038+00:00,"2025-10-06 11:01:14,567 INFO  [org.jboss.as.server] (ServerService Thread Pool -- 45)",0.0,False
-2025-10-06T07:25:40.985492+00:00,"025-10-06 11:05:45,001 WARN  [org.jboss.modules] (MSC service thread 1-2) Failed to define class org.example.OrderService in Module ""deployment.order-app.war"" java.lang.ClassNotFoundException: org.example.OrderService",0.0,False
-2025-10-06T07:25:53.712275+00:00,"025-10-06 11:05:45,001 WARN  [org.jboss.modules] (MSC service thread 1-2) Failed to define class org.example.OrderService in Module ""deployment.order-app.war"" java.lang.ClassNotFoundException: org.example.OrderService",0.0,False
-2025-10-06T07:30:06.021261+00:00,"2025-10-06 11:06:50,500 FATAL [org.jboss.as.controller.management-operation] (ServerService Thread Pool -- 22) Unexpected runtime failure: java.lang.OutOfMemoryError: Java heap space",0.0,False
-2025-10-06T07:30:36.937159+00:00,"2025-10-06 11:06:50,500 FATAL [org.jboss.as.controller.management-operation] (ServerService Thread Pool -- 22) Unexpected runtime failure: java.lang.OutOfMemoryError: Java heap space",0.0,False
-2025-10-06T07:32:23.288053+00:00,"2025-10-06 11:05:45.001000+00:00,ubuntu-intern-vm,jboss-modules,3241,Failed to define class org.example.OrderService in Module ""deployment.order-app.war"" java.lang.ClassNotFoundException: org.example.OrderService",0.0,False
-2025-10-06T08:07:41.218919+00:00,[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,0.0,False
-2025-10-06T08:07:48.395090+00:00,[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,0.0,False
-2025-10-06T08:07:49.922774+00:00,[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,0.0,False
-2025-10-06T09:08:02.146933+00:00,[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,0.0,False
-2025-10-06T09:53:21.659876+00:00,[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,0.0,False
-2025-10-06T12:29:18.721426+00:00,[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,0.06084,False
-2025-10-06T12:29:47.084386+00:00,[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,0.06084,False
-2025-10-06T12:30:54.454766+00:00,"{""log"": ""[2025-09-22 14:30:10] INFO  [org.jboss.as.server] JBoss server started successfully in 3.2s""}",0.04813,False
-2025-10-06T12:31:18.757246+00:00,"{""log"": ""[2025-09-22 14:32:44] WARN  [org.jboss.as.config] Deprecated configuration option detected""}
-",0.05115,False
-2025-10-06T12:32:06.420410+00:00,"{""log"": ""[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean""}
-",0.06084,False
-2025-10-06T12:32:24.527317+00:00,"{""log"": ""[2025-09-22 14:37:51] FATAL [org.jboss.modules] JVM out of memory – shutting down""}
-",0.06002,False
-2025-10-06T12:34:00.955316+00:00,"{""log"": ""[2025-09-22 14:37:51] FATAL [org.jboss.modules] JVM out of memory – shutting down""}
-",0.06002,False
-2025-10-06T12:35:51.552623+00:00,"curl -X POST http://localhost:5000/analyze \
--H ""Content-Type: application/json"" \
--d '{""log"": ""[2025-09-22 14:37:51] FATAL [org.jboss.modules] JVM out of memory – shutting down""}'
-",0.06002,False
-2025-10-06T12:35:58.283889+00:00,"curl -X POST http://localhost:5000/analyze \
--H ""Content-Type: application/json"" \
--d '{""log"": ""[2025-09-22 14:37:51] FATAL [org.jboss.modules] JVM out of memory – shutting down""}'
-",0.06002,False
-2025-10-06T12:37:51.925351+00:00,"{
-  ""log"": ""[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean""
-}
-",0.06084,False
-2025-10-06T12:37:57.763906+00:00,"{
-  ""log"": ""[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean""
-}
-",0.06084,False
-2025-10-06T12:39:50.750105+00:00,"{
-  ""log"": ""[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean""
-}
-",0.06084,False
-2025-10-06T12:41:00.642428+00:00,[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,0.06084,False
-2025-10-06T12:41:17.499864+00:00,"{
-  ""log"": ""[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean""
-}
-",0.06084,False
-2025-10-06T12:46:39.893118+00:00,[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,0.06084,False
-2025-10-06T12:48:36.852159+00:00,"[2025-09-22 14:35:17] INFO  [org.jboss.as.server] JBoss server started in 5.234s
-",0.05517,False
-2025-10-06T12:48:39.831141+00:00,"[2025-09-22 14:35:17] INFO  [org.jboss.as.server] JBoss server started in 5.234s
-",0.05517,False
-2025-10-06T12:48:59.820878+00:00,"[2025-09-22 14:36:10] DEBUG [org.jboss.ejb3] Starting EJB subsystem
-",0.08035,False
-2025-10-06T12:49:07.902483+00:00,"[2025-09-22 14:37:51] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean
-",0.06084,False
-2025-10-06T12:49:19.936498+00:00,"[2025-09-22 14:42:25] FATAL [org.jboss.modules] JVM out of memory – shutting down
-",0.07071,False
-2025-10-06T12:49:29.377413+00:00,"[2025-09-22 14:45:19] CRITICAL [org.jboss.server] Kernel panic detected, forcing shutdown
-",0.06188,False
-2025-10-06T13:06:25.259824+00:00,[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,0.06084,True
-2025-10-06T13:07:21.651458+00:00,"{
-  ""log"": ""[2025-09-22 14:37:51] FATAL [org.jboss.modules] JVM out of memory – shutting down""
-}
-",0.06002,True
-2025-10-06T13:07:26.794039+00:00,"{
-  ""log"": ""[2025-09-22 14:37:51] FATAL [org.jboss.modules] JVM out of memory – shutting down""
-}
-",0.06002,True
-2025-10-06T13:07:41.006687+00:00,"{
-  ""log"": ""[2025-09-22 14:37:51] FATAL [org.jboss.modules] JVM out of memory – shutting down""
-}
-",0.06002,True
-2025-10-06T13:07:50.826161+00:00,"{
-  ""log"": ""[2025-09-22 14:45:19] ERROR [org.jboss.txn] Distributed transaction rollback failed""
-}
-",0.05802,True
-HEAD
-2025-10-07T06:57:50.096272+00:00,ERROR [org.jboss.ejb3] test log,0.07058,True
-2025-10-07T09:55:19.831821+00:00,2025-10-07 14:22:00 ERROR [org.jboss] Critical failure in connection pool,0.04994,True
-2025-10-07T10:01:49.226769+00:00,2025-10-07 15:20:00 ERROR [org.jboss] Database connection lost unexpectedly,0.05977,True
-2025-10-07T10:03:34.907534+00:00,[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,0.06084,True
-2025-10-07T10:24:53.359434+00:00,[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,0.06084,True
-2025-10-07T10:24:57.742019+00:00,[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,0.06084,True
-2025-10-07T10:25:02.763972+00:00,[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,0.06084,True
-2f2bc084f16bba2f5769f6e748c07658ec6b2ae0
+timestamp,log,file_path,anomaly_score,is_anomaly
+2025-10-09T10:51:46.162149+00:00,[[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,/var/log/jboss/server.log,0.04941,True
+2025-10-09T10:53:21.362401+00:00,[[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,/var/log/jboss/server.log,0.04941,True
+2025-10-09T10:54:10.611037+00:00,[[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,/var/log/jboss/server.log,0.04941,True
+2025-10-09T11:23:18.358886+00:00,[[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,/var/log/jboss/server.log,0.04941,True
+2025-10-09T12:20:10.864172+00:00,[[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,/var/log/jboss/server.log,0.06084,True
+2025-10-09T12:20:17.878318+00:00,[[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,/var/log/jboss/server.log,0.06084,True
+2025-10-09T12:20:19.581743+00:00,[[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,/var/log/jboss/server.log,0.06084,True
+2025-10-09T12:20:20.531685+00:00,[[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,/var/log/jboss/server.log,0.06084,True
+2025-10-09T12:20:21.190171+00:00,[[2025-09-22 14:35:17] ERROR [org.jboss.ejb3] – Transaction timeout for UserSessionBean,/var/log/jboss/server.log,0.06084,True

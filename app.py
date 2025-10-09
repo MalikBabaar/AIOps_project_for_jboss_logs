@@ -1,5 +1,5 @@
+# app.py
 import os
-import re
 import joblib
 import pandas as pd
 import psutil
@@ -7,18 +7,15 @@ import yaml
 import traceback
 from dotenv import load_dotenv
 from datetime import datetime, timezone
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from fastapi.responses import JSONResponse, Response
 from prometheus_client import Gauge, CollectorRegistry, generate_latest, CONTENT_TYPE_LATEST
 from sklearn.ensemble import IsolationForest
-from typing import List
-from tasks import retrain_model_task
-from celery_app import retrain_model_task
+from typing import List, Optional
 from celery.result import AsyncResult
-
 
 # ---------------- CONFIG ---------------- #
 load_dotenv()
@@ -27,11 +24,30 @@ with open("config.yaml", "r") as f:
 
 app = FastAPI()
 
-# Paths
+# Files / paths
 ANOMALY_HISTORY_FILE = "anomaly_history.csv"
 MODEL_PATH_FILE = "latest_model.txt"
 VECTORIZER_PATH_FILE = "latest_vectorizer.txt"
 EVENTS_FILE = "events.csv"
+USERS_FILE = "users.csv"
+LOG_PATH_FILE = "log_path.txt"
+
+# Temporary hardcoded credentials (later you can move to DB)
+USERS = {
+    "admin": "admin",
+    "fahad": "fahad123",
+}
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+@app.post("/login")
+async def login_user(credentials: LoginRequest):
+    if credentials.username in USERS and USERS[credentials.username] == credentials.password:
+        return {"status": "success", "username": credentials.username}
+    else:
+        raise HTTPException(status_code=401, detail="Invalid username or password")
 
 def get_latest_model_and_vectorizer():
     try:
@@ -52,7 +68,8 @@ ANOMALY_THRESHOLD = float(config.get("anomaly_threshold", 0))
 # ---------------- INPUT MODEL ---------------- #
 class LogInput(BaseModel):
     log: str
-    label: int | None = None
+    label: Optional[int] = None
+    file_path: Optional[str] = None
 
 # ---------------- EVENTS & ALERTS ---------------- #
 def save_event(source, event_type, severity, message, status="active"):
@@ -65,7 +82,6 @@ def save_event(source, event_type, severity, message, status="active"):
         "message": message,
         "status": status
     }])
-
     if os.path.exists(EVENTS_FILE):
         record.to_csv(EVENTS_FILE, mode="a", header=False, index=False)
     else:
@@ -77,7 +93,8 @@ def get_events():
     if not os.path.exists(EVENTS_FILE):
         return []
     try:
-        df = pd.read_csv(EVENTS_FILE)
+        df = pd.read_csv(EVENTS_FILE, on_bad_lines="skip")
+        df = df.where(pd.notnull(df), None)
         return df.to_dict(orient="records")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error reading events: {e}")
@@ -87,16 +104,12 @@ def acknowledge_event(timestamp: str):
     """Mark an event as acknowledged"""
     if not os.path.exists(EVENTS_FILE):
         raise HTTPException(status_code=404, detail="No events file found")
-
     try:
-        df = pd.read_csv(EVENTS_FILE)
-
+        df = pd.read_csv(EVENTS_FILE, on_bad_lines="skip")
         if timestamp not in df["timestamp"].values:
             raise HTTPException(status_code=404, detail="Event not found")
-
         df.loc[df["timestamp"] == timestamp, "status"] = "acknowledged"
         df.to_csv(EVENTS_FILE, index=False)
-
         return {"message": f"Event {timestamp} acknowledged successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error updating event: {e}")
@@ -108,13 +121,18 @@ async def analyze(payload: LogInput):
         raise HTTPException(status_code=500, detail="No trained model found. Retrain first.")
     try:
         log_text = payload.log
+        file_path = payload.file_path or (open(LOG_PATH_FILE).read().strip() if os.path.exists(LOG_PATH_FILE) else "unknown")
+
+        # Handle dict input (sometimes JSON can nest "log")
         if isinstance(log_text, dict):
             log_text = log_text.get("log", str(log_text))
 
+        # Compute anomaly score
         X = vectorizer.transform([log_text])
-        score = model.decision_function(X)[0]
+        score = float(model.decision_function(X)[0])
         is_anomaly = bool(score < ANOMALY_THRESHOLD)
 
+        # Force mark critical keywords as anomalies
         critical_keywords = ["ERROR", "FATAL", "CRITICAL", "OUT OF MEMORY", "KERNEL PANIC", "SHUTDOWN"]
         if any(keyword.lower() in log_text.lower() for keyword in critical_keywords):
             is_anomaly = True
@@ -122,28 +140,38 @@ async def analyze(payload: LogInput):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Model error: {e}")
 
+    # -------------------------------------------------------------------
+    # Save result
+    # -------------------------------------------------------------------
     current_timestamp = datetime.now(timezone.utc).isoformat()
-    result = {
-        "timestamp": current_timestamp,
-        "log": log_text,
-        "anomaly_score": round(float(score), 5),
-        "is_anomaly": is_anomaly
-    }
 
-    # Save anomaly history
-    record = pd.DataFrame([result])
-    if os.path.exists(ANOMALY_HISTORY_FILE):
-        record.to_csv(ANOMALY_HISTORY_FILE, mode="a", header=False, index=False)
-    else:
-        record.to_csv(ANOMALY_HISTORY_FILE, index=False)
+    # Define consistent column order
+    columns = ["timestamp", "log", "file_path", "anomaly_score", "is_anomaly"]
+    record = pd.DataFrame(
+        [[current_timestamp, log_text, file_path, round(score, 5), is_anomaly]],
+        columns=columns
+    )
 
+    # Append safely to CSV (add header only once)
+    record.to_csv(ANOMALY_HISTORY_FILE, mode="a", header=not os.path.exists(ANOMALY_HISTORY_FILE), index=False)
+
+    # -------------------------------------------------------------------
     # Save event if anomaly detected
+    # -------------------------------------------------------------------
     if is_anomaly:
         severity = "critical" if any(k.lower() in log_text.lower() for k in critical_keywords) else "warning"
-        save_event("JBoss Logs", "Anomaly", severity, log_text[:200], "active")
+        save_event(file_path, "Anomaly", severity, log_text[:200], "active")
 
-    return JSONResponse(content=result)
+    # Return clean JSON response
+    return JSONResponse(content={
+        "timestamp": current_timestamp,
+        "log": log_text,
+        "file_path": file_path,
+        "anomaly_score": round(score, 5),
+        "is_anomaly": is_anomaly
+    })
 
+# ---------------- RETRAIN ---------------- #
 @app.post("/retrain")
 async def retrain(new_logs: List[LogInput]):
     try:
@@ -157,11 +185,11 @@ async def retrain(new_logs: List[LogInput]):
         if len(df_features) > 10000:
             df_features = df_features.sample(10000, random_state=42)
 
-        # --- Vectorize logs ---
+        # Vectorize
         new_vectorizer = TfidfVectorizer(max_features=5000)
-        X = new_vectorizer.fit_transform(df_features["log"])
+        X = new_vectorizer.fit_transform(df_features["log"].astype(str))
 
-        # --- Train Isolation Forest ---
+        # Train Isolation Forest
         contamination = 0.05
         new_model = IsolationForest(contamination=contamination, random_state=42)
         new_model.fit(X)
@@ -185,7 +213,7 @@ async def retrain(new_logs: List[LogInput]):
         model, vectorizer = new_model, new_vectorizer
         MODEL_PATH, VECTORIZER_PATH = model_filename, vectorizer_filename
 
-        # --- Predict anomalies ---
+        # Predict anomalies on training set
         y_pred = new_model.predict(X)
         y_pred = [0 if p == 1 else 1 for p in y_pred]
         anomalies = sum(y_pred)
@@ -200,7 +228,7 @@ async def retrain(new_logs: List[LogInput]):
                 rec = recall_score(y_true, y_pred, zero_division=0)
                 f1 = f1_score(y_true, y_pred, zero_division=0)
             except Exception:
-                pass  # ignore label errors for unlabeled data
+                pass
 
         return JSONResponse(content={
             "status": "success",
@@ -216,78 +244,130 @@ async def retrain(new_logs: List[LogInput]):
         })
 
     except Exception as e:
-        import traceback
         error_detail = traceback.format_exc()
         raise HTTPException(status_code=500, detail=f"Retrain failed: {e}\n{error_detail}")
 
+# ---------------- ASYNC retrain placeholders (if you use Celery) ---------------- #
+# Keep as-is if celery configured; otherwise these routes can remain but won't be used.
+try:
+    from celery_app import celery_app, retrain_model_task
+    @app.post("/retrain-async")
+    async def retrain_async(new_logs: List[LogInput]):
+        df_data = [item.dict() for item in new_logs]
+        task = retrain_model_task.delay(df_data)
+        return {"task_id": task.id, "status": "queued"}
 
-from fastapi import BackgroundTasks
-from celery_app import celery_app
+    @app.get("/task-status/{task_id}")
+    def get_task_status(task_id: str):
+        result = AsyncResult(task_id, app=celery_app)
+        return {"task_id": task_id, "status": result.status, "result": result.result}
+except Exception:
+    # Celery not configured — ignore
+    pass
 
-@app.post("/retrain-async")
-async def retrain_async(new_logs: List[LogInput]):
-    df_data = [item.dict() for item in new_logs]
-    task = retrain_model_task.delay(df_data)
-    return {"task_id": task.id, "status": "queued"}
-
-@app.get("/task-status/{task_id}")
-def get_task_status(task_id: str):
-    # ✅ Use the same Celery app that your worker uses
-    result = AsyncResult(task_id, app=celery_app)
-    return {
-        "task_id": task_id,
-        "status": result.status,
-        "result": result.result
-    }
-
-# ---------------- Anomaly History Route ---------------- #
-@app.get("/anomaly-history")
-async def anomaly_history():
+# ---------------- Anomaly History / Live Logs ---------------- #
+def load_anomaly_history(start: str = None, end: str = None, limit: int = None):
+    """Shared function to read anomaly history data with proper timezone handling."""
     if not os.path.exists(ANOMALY_HISTORY_FILE):
         return []
     try:
-        # Read CSV safely
         df = pd.read_csv(ANOMALY_HISTORY_FILE, on_bad_lines="skip")
-
-        # Drop empty or corrupted rows
         df.dropna(subset=["timestamp", "log"], inplace=True)
 
-        # Replace NaN with None for JSON serialization
-        df = df.where(pd.notnull(df), None)
+        # Make all timestamps UTC-aware
+        df["timestamp"] = pd.to_datetime(df["timestamp"], errors="coerce", utc=True)
 
+        # Apply start/end filters (convert them to UTC too)
+        if start:
+            start_dt = pd.to_datetime(start, utc=True)
+            df = df[df["timestamp"] >= start_dt]
+        if end:
+            end_dt = pd.to_datetime(end, utc=True)
+            df = df[df["timestamp"] <= end_dt]
+
+        # Apply limit and sort
+        if limit:
+            df = df.tail(limit)
+        df = df.sort_values(by="timestamp", ascending=False)
+
+        # Replace NaN with None for JSON safety
+        df = df.where(pd.notnull(df), None)
         return df.to_dict(orient="records")
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to load anomaly history: {e}")
 
+
+@app.get("/anomaly-history")
+async def anomaly_history(
+    start: Optional[str] = Query(None),
+    end: Optional[str] = Query(None),
+    limit: Optional[int] = Query(None)
+):
+    """Return anomaly history with optional filters."""
+    return load_anomaly_history(start=start, end=end, limit=limit)
+
+
+@app.get("/live-logs")
+async def live_logs(limit: int = 10):
+    """Return the latest anomalies for live dashboard view."""
+    return load_anomaly_history(limit=limit)
+
+@app.post("/anomaly/{timestamp}/tag")
+def tag_anomaly(timestamp: str, payload: dict):
+    """Add or update a tag for an anomaly identified by timestamp."""
+    if not os.path.exists(ANOMALY_HISTORY_FILE):
+        raise HTTPException(status_code=404, detail="No anomaly history file found")
+    try:
+        df = pd.read_csv(ANOMALY_HISTORY_FILE, on_bad_lines="skip")
+        if timestamp not in df["timestamp"].astype(str).values:
+            raise HTTPException(status_code=404, detail="Anomaly not found")
+        if "tag" not in df.columns:
+            df["tag"] = None
+        df.loc[df["timestamp"].astype(str) == timestamp, "tag"] = payload.get("tag")
+        df.to_csv(ANOMALY_HISTORY_FILE, index=False)
+        return {"message": "Tag updated"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 # ---------------- Overview ---------------- #
 @app.get("/overview")
 def overview():
     total_logs = anomalies = 0
-    if os.path.exists(ANOMALY_HISTORY_FILE):
-        df = pd.read_csv(ANOMALY_HISTORY_FILE)
-        total_logs = len(df)
-        if "is_anomaly" in df.columns:
-            anomalies = df["is_anomaly"].sum()
+    try:
+        if os.path.exists(ANOMALY_HISTORY_FILE):
+            df = pd.read_csv(ANOMALY_HISTORY_FILE, on_bad_lines="skip")
+            total_logs = len(df)
+
+            if "is_anomaly" in df.columns:
+                df["is_anomaly"] = df["is_anomaly"].astype(str).str.strip().str.lower()
+                df["is_anomaly"] = df["is_anomaly"].isin(["true", "1", "yes", "y", "t"])
+                anomalies = int(df["is_anomaly"].sum())
+    except Exception as e:
+        print("Error in overview():", e)
+        total_logs = 0
+        anomalies = 0
+
+    active_users = 0
+    if os.path.exists(USERS_FILE):
+        try:
+            active_users = pd.read_csv(USERS_FILE).shape[0]
+        except Exception:
+            pass
+
     return {
         "total_logs": int(total_logs),
         "anomalies": int(anomalies),
-        "models_deployed": 1,
-        "active_users": 1
+        "models_deployed": 1 if model is not None else 0,
+        "active_users": int(active_users)
     }
 
-
 # ---------------- Users & Teams ---------------- #
-USERS_FILE = "users.csv"
-
 @app.post("/users")
 def add_user(user: dict):
-    """Add a new user with role and team"""
     required = ["name", "email", "role", "team"]
     if not all(k in user for k in required):
         raise HTTPException(status_code=400, detail="Missing user fields")
-
-    # Append new user
     df = pd.DataFrame([{
         "name": user["name"],
         "email": user["email"],
@@ -295,48 +375,37 @@ def add_user(user: dict):
         "team": user["team"],
         "created_at": datetime.now(timezone.utc).isoformat()
     }])
-
     if os.path.exists(USERS_FILE):
         df.to_csv(USERS_FILE, mode="a", header=False, index=False)
     else:
         df.to_csv(USERS_FILE, index=False)
-
     return {"status": "success", "message": f"User {user['name']} added."}
-
 
 @app.get("/users")
 def list_users():
-    """List all users"""
     if not os.path.exists(USERS_FILE):
         return []
-    df = pd.read_csv(USERS_FILE)
+    df = pd.read_csv(USERS_FILE, on_bad_lines="skip")
     return df.to_dict(orient="records")
-
 
 @app.delete("/users/{email}")
 def delete_user(email: str):
-    """Delete user by email"""
     if not os.path.exists(USERS_FILE):
         raise HTTPException(status_code=404, detail="No users found")
-
-    df = pd.read_csv(USERS_FILE)
+    df = pd.read_csv(USERS_FILE, on_bad_lines="skip")
     if email not in df["email"].values:
         raise HTTPException(status_code=404, detail="User not found")
-
     df = df[df["email"] != email]
     df.to_csv(USERS_FILE, index=False)
     return {"status": "success", "message": f"User {email} deleted"}
 
-
 @app.get("/teams")
 def list_teams():
-    """Return distinct team names"""
     if not os.path.exists(USERS_FILE):
         return []
-    df = pd.read_csv(USERS_FILE)
+    df = pd.read_csv(USERS_FILE, on_bad_lines="skip")
     teams = df["team"].dropna().unique().tolist()
     return teams
-
 
 # ---------------- System Stats ---------------- #
 registry = CollectorRegistry()
@@ -352,21 +421,17 @@ def get_system_stats():
     mem = psutil.virtual_memory().percent
     disk = psutil.disk_usage('/').percent
     net_io = psutil.net_io_counters()
-
-    # Save alerts if system thresholds exceed limits
     if cpu > 90:
         save_event("System", "Resource Alert", "critical", f"High CPU usage detected: {cpu}%", "active")
     if mem > 80:
         save_event("System", "Resource Alert", "warning", f"High memory usage detected: {mem}%", "active")
     if disk > 85:
         save_event("System", "Resource Alert", "warning", f"High disk usage detected: {disk}%", "active")
-
     cpu_gauge.set(cpu)
     mem_gauge.set(mem)
     disk_gauge.set(disk)
     net_sent_gauge.set(net_io.bytes_sent)
     net_recv_gauge.set(net_io.bytes_recv)
-
     return {
         "cpu": cpu,
         "memory": mem,
@@ -400,3 +465,13 @@ def model_info():
         "file_size": os.path.getsize(model_path) if os.path.exists(model_path) else 0,
         "last_updated": datetime.fromtimestamp(os.path.getmtime(model_path), tz=timezone.utc).isoformat() if os.path.exists(model_path) else None
     }
+
+# ---------------- Utilities ---------------- #
+@app.post("/set-log-path")
+def set_log_path(payload: dict):
+    path = payload.get("path")
+    if not path:
+        raise HTTPException(status_code=400, detail="Missing 'path' field")
+    with open(LOG_PATH_FILE, "w") as f:
+        f.write(path)
+    return {"message": f"log path set to {path}"}
